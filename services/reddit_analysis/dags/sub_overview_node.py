@@ -99,9 +99,10 @@ def get_subreddit_info(subreddit: str,
 
 def deliver_subreddit_info(sub_summary: dict):
     blob_path = Path(
+        'reddit_analysis'
         'subreddit_overview', 
         sub_summary['subreddit'],
-        sub_summary['date'] + '.json'  
+        sub_summary['date'] + '.json'
     ).as_posix()
     client = storage.Client()
     bucket = client.bucket(google_storage_bucket_name)
