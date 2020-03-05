@@ -80,6 +80,7 @@ for subreddit in dag_cfg['subreddits']:
         task_id=f"{subreddit}-summary",
         python_callable=subreddit_overview,
         op_args=[subreddit],
+        provide_context=True,
         dag=dag,
     )
     summary_ops.append(task)
