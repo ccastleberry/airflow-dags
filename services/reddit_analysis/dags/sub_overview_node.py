@@ -67,7 +67,7 @@ def get_subreddit_info(subreddit: str,
                     user_agent=reddit_user_agent)
     api = PushshiftAPI(r)
 
-    end = dt.datetime.combine(dt.date.today(), dt.datetime.min.time())
+    end = dt.datetime.combine(date, dt.datetime.min.time())
     start = end - dt.timedelta(days=1)
     results = api.search_submissions(
         after=int(start.timestamp()),
