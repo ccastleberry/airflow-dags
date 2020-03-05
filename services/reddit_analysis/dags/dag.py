@@ -18,7 +18,7 @@ Helper Functions
 '''
 
 def subreddit_overview(subreddit, **context):
-    date = context['prev_ds']
+    date = dt.date.fromisoformat(context['prev_ds'])
     summary_path = son.daily_summary_node(subreddit, date=date)
     return summary_path
 
