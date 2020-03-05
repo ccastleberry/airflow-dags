@@ -40,7 +40,7 @@ metric_default_args = {
     'email_on_failure': True,
     'email_on_retry': False,
     'retries': 5,
-    'retry_delay': timedelta(minutes=5),
+    'retry_delay': dt.timedelta(minutes=5),
     # 'queue': 'bash_queue',
     # 'pool': 'backfill',
     # 'priority_weight': 10,
