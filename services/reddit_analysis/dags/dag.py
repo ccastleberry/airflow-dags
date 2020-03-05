@@ -59,7 +59,7 @@ Reddit Analysis - DAG Definition
 dag = DAG(
     'Reddit-Analysis-V0.1',
     default_args=metric_default_args,
-    schedule_interval=timedelta(days=1),
+    schedule_interval=dt.timedelta(days=1),
     concurrency=4,
     catchup=True
 )
