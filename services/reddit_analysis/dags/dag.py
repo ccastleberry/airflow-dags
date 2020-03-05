@@ -77,7 +77,7 @@ with open(config_path) as f:
 summary_ops = []
 for subreddit in dag_cfg['subreddits']:
     task = PythonOperator(
-        task_id=f"{subreddit} summary",
+        task_id=f"{subreddit}-summary",
         python_callable=subreddit_overview,
         op_args=[subreddit],
         dag=dag,
