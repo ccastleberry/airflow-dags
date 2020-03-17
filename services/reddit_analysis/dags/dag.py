@@ -95,6 +95,8 @@ for subreddit in dag_cfg['subreddits']:
         dag=dag,
     )
 
+    sub_summary_task >> post_detail_task
+
     
 
     summary_ops.append(post_detail_task)
