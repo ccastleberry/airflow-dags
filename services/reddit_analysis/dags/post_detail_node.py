@@ -105,8 +105,61 @@ def get_submission_detail(submission_id: str) -> dict:
     return post_summary, comments
 
 
-def deliver_submission_detail():
-    pass
+def get_top_n_posts(subreddit, date, n=10):
+    blob_path = Path(
+        'reddit_analysis',
+        'subreddit_overview', 
+        subreddit,
+        date.strftime('%Y-%m-%d') + '.json'
+    ).as_posix()
+    client = storage.Client()
+    bucket = client.bucket(google_storage_bucket_name)
+    blob = bucket.blob(blob_path)
+    if not blob.exists():
+        raise NameError('A blob for that date and subreddit does not exist.')
+    summary = json.loads(blob.download_as_string())
+    subs = summary['submissions']
+    if len(subs) < (n + 1):
+        logger.warning('N > number of subs. returning all subs.')
+        n = len(subs) - 1
+    top_n = sorted(subs, key=(lambda x: x['score']), reverse=True)[:n]
+    return top_n
+
+
+def deliver_post_summary(post_summary):
+    blob_path = Path(
+        'reddit_analysis',
+        'post_summaries',
+        post_summary['id'] + '_summary' + '.json'
+    ).as_posix()
+    client = storage.Client()
+    bucket = client.bucket(google_storage_bucket_name)
+    json_temp = tempfile.TemporaryFile('r+')
+    json.dump(post_summary, json_temp)
+    json_blob = bucket.blob(blob_path)
+    json_temp.seek(0)
+    json_blob.upload_from_file(json_temp)
+    return blob_path
+
+
+def deliver_post_comments(post_comments):
+    blob_path = Path(
+        'reddit_analysis',
+        'comments',
+        post_comments[0]['post_id'] + '_comments' + '.json'
+    ).as_posix()
+    client = storage.Client()
+    bucket = client.bucket(google_storage_bucket_name)
+    json_temp = tempfile.TemporaryFile('r+')
+    json.dump(post_comments, json_temp)
+    json_blob = bucket.blob(blob_path)
+    json_temp.seek(0)
+    json_blob.upload_from_file(json_temp)
+    return blob_path
+
+
+
+    
 
 
 '''
@@ -119,4 +172,9 @@ DAG Functions
 def sub_detail_node(subreddit: str,
               date: dt.date = dt.date.today()
               ) -> str:
-    pass
+    top_posts = get_top_n_posts(subreddit, date)
+    for post in top_posts:
+        post_id = post['id']
+        summary, comments = get_submission_detail(post_id)
+        deliver_post_summary(summary)
+        deliver_post_comments(comments)

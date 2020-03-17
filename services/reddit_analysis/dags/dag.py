@@ -9,6 +9,7 @@ from airflow.operators.python_operator import (
 )
 
 from airflow_dags.services.reddit_analysis.dags import sub_overview_node as son
+from airflow_dags.services.reddit_analysis.dags import post_detail_node as pdn
 
 
 '''
@@ -22,7 +23,9 @@ def subreddit_overview(subreddit, **context):
     summary_path = son.daily_summary_node(subreddit, date=date)
     return summary_path
 
-
+def post_detail(subreddit, **context):
+    date = dt.date.fromisoformat(context['prev_ds'])
+    pdn.sub_detail_node(subreddit, date=date)
 
 
 '''
@@ -76,11 +79,22 @@ with open(config_path) as f:
 
 summary_ops = []
 for subreddit in dag_cfg['subreddits']:
-    task = PythonOperator(
+    sub_summary_task = PythonOperator(
         task_id=f"{subreddit}-summary",
         python_callable=subreddit_overview,
         op_args=[subreddit],
         provide_context=True,
         dag=dag,
     )
-    summary_ops.append(task)
+
+    post_detail_task = PythonOperator(
+        task_id=f"{subreddit}-detail",
+        python_callable=post_detail,
+        op_args=[subreddit],
+        provide_context=True,
+        dag=dag,
+    )
+
+    
+
+    summary_ops.append(post_detail_task)
