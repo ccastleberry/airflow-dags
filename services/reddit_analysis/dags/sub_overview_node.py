@@ -81,8 +81,7 @@ def get_subreddit_info(subreddit: str,
     sub_info = {
         'subreddit': subreddit,
         'date': date.strftime('%Y-%m-%d'),
-        'submissions': [],
-    }
+        'submissions': [],    }
 
     for entry in results:
         record = {

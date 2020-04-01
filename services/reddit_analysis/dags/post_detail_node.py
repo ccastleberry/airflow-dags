@@ -21,6 +21,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 from psaw import PushshiftAPI
 
+from textblob import TextBlob
+from tensorflow import keras as tfk
+import tensorflow_hub as hub
+
 '''
 -----------------------------
 Setup
@@ -50,6 +54,9 @@ except:
     reddit_client_secret = os.environ.get('REDDIT_CLIENT_SECRET')
     reddit_user_agent = os.environ.get('REDDIT_USER_AGENT')
     google_storage_bucket_name = os.environ.get('GOOGLE_STORAGE_BUCKET_NAME')
+
+# setup paths
+MODEL_PATH = Path(__file__).parent.parent.joinpath('models', 'keras_large_bert.h5')
 
 '''
 -----------------------------
@@ -81,14 +88,28 @@ def get_submission_detail(submission_id: str) -> dict:
     comments = []
     comment_levels = {}
     post_comments.replace_more(limit=None)
+    model = tfk.models.load_model(MODEL_PATH,
+                                  custom_objects={'KerasLayer': hub.KerasLayer})
+
     for comment in post_comments.list():
+
+        # Get related comments
         comment_parent_id = comment.parent_id.split('_')[1]
         comment_parent_prefix = comment.parent_id.split('_')[0]
+
+        # get comment level
         if comment.is_root:
             comment_level = 1
         else:
             comment_level = comment_levels.get(comment_parent_id) + 1
         comment_levels[comment.id] = comment_level
+
+        # get nouns and sentiment
+        tb = TextBlob(comment.body)
+
+        # get predictions
+        comment_array = np.array(comment.body).reshape(-1)
+        preds = model.predict(comment_array)[0]
 
         comments.append({
             'id': comment.id,
@@ -100,15 +121,24 @@ def get_submission_detail(submission_id: str) -> dict:
             'level': comment_level,
             'post_id': post_id,
             'created_ts': comment.created_utc,
+            'tb_noun_phrases': list(tb.noun_phrases),
+            'tb_sentiment_polarity': tb.sentiment.polarity,
+            'tb_sentiment_subjectivity': tb.sentiment.subjectivity,
+            'tf_toxic': float(preds[0]),
+            'tf_severe_toxic': float(preds[1]),
+            'tf_obscene': float(preds[2]),
+            'tf_threat': float(preds[3]),
+            'tf_insult': float(preds[4]),
+            'tf_identity_hate': float(preds[5]),
         })
-    
+
     return post_summary, comments
 
 
 def get_top_n_posts(subreddit, date, n=10):
     blob_path = Path(
         'reddit_analysis',
-        'subreddit_overview', 
+        'subreddit_overview',
         subreddit,
         date.strftime('%Y-%m-%d') + '.json'
     ).as_posix()
@@ -146,20 +176,18 @@ def deliver_post_comments(post_comments):
     blob_path = Path(
         'reddit_analysis',
         'comments',
-        post_comments[0]['post_id'] + '_comments' + '.json'
+        post_comments[0]['post_id'] + '_comments' + '.jsonl'
     ).as_posix()
     client = storage.Client()
     bucket = client.bucket(google_storage_bucket_name)
     json_temp = tempfile.TemporaryFile('r+')
-    json.dump(post_comments, json_temp)
+    #json.dump(post_comments, json_temp)
+    for comment in post_comments:
+        json_temp.write(json.dumps(comment) + '\n')
     json_blob = bucket.blob(blob_path)
     json_temp.seek(0)
     json_blob.upload_from_file(json_temp)
     return blob_path
-
-
-
-    
 
 
 '''
@@ -170,8 +198,8 @@ DAG Functions
 
 
 def sub_detail_node(subreddit: str,
-              date: dt.date = dt.date.today()
-              ) -> str:
+                    date: dt.date = dt.date.today()
+                    ) -> str:
     top_posts = get_top_n_posts(subreddit, date)
     for post in top_posts:
         post_id = post['id']
